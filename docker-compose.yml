@@ -1,0 +1,13 @@
+version: '3.1'
+
+services:
+
+  db:
+    container_name: postgres15
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: username
+      CGO_ENABLED: 1
