@@ -26,3 +26,4 @@ sqlc:
 
 test:
 	@go test -v -cover ./...
+	@go clean -testcache

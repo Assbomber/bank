@@ -49,6 +49,7 @@ func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
 func (store *Store) TransferTx(ctx context.Context, args TransferTxParams) (TransferTxResult, error) {
 	var result TransferTxResult
 	err := store.execTx(ctx, func(queries *Queries) error {
+
 		var err error
 		result.Transfer, err = queries.CreateTransfer(ctx, CreateTransferParams{
 			FromAccountID: args.FromAccountID,
@@ -59,6 +60,7 @@ func (store *Store) TransferTx(ctx context.Context, args TransferTxParams) (Tran
 			return err
 		}
 
+		// creating entry for FromAccount
 		result.FromEntry, err = queries.CreateEntry(ctx, CreateEntryParams{
 			AccountID: args.FromAccountID,
 			Amount:    -args.Amount,
@@ -66,6 +68,8 @@ func (store *Store) TransferTx(ctx context.Context, args TransferTxParams) (Tran
 		if err != nil {
 			return err
 		}
+
+		// creating entry for toAccount
 		result.ToEntry, err = queries.CreateEntry(ctx, CreateEntryParams{
 			AccountID: args.ToAccountID,
 			Amount:    args.Amount,
@@ -74,7 +78,34 @@ func (store *Store) TransferTx(ctx context.Context, args TransferTxParams) (Tran
 			return err
 		}
 
-		// TODO: Update the accounts
+		//  Update the account 1 for deduction
+		acc1, err := queries.GetAccountForUpdate(ctx, args.FromAccountID)
+		if err != nil {
+			return err
+		}
+
+		result.FromAccount, err = queries.UpdateAccount(ctx, UpdateAccountParams{
+			ID:      args.FromAccountID,
+			Balance: acc1.Balance - args.Amount,
+		})
+		if err != nil {
+			return err
+		}
+
+		//  Update the account 2 for addition
+		acc2, err := queries.GetAccountForUpdate(ctx, args.ToAccountID)
+		if err != nil {
+			return err
+		}
+
+		result.ToAccount, err = queries.UpdateAccount(ctx, UpdateAccountParams{
+			ID:      args.ToAccountID,
+			Balance: acc2.Balance + args.Amount,
+		})
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 	return result, err

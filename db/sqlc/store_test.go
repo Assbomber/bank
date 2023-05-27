@@ -20,8 +20,10 @@ func TestTransferTx(t *testing.T) {
 	results := make(chan TransferTxResult)
 
 	for i := 0; i < n; i++ {
-		go func() {
-			result, err := store.TransferTx(context.Background(), TransferTxParams{
+		go func(i int) {
+
+			ctx := context.WithValue(context.Background(), "txID", i)
+			result, err := store.TransferTx(ctx, TransferTxParams{
 				FromAccountID: account1.ID,
 				ToAccountID:   account2.ID,
 				Amount:        amount,
@@ -29,7 +31,7 @@ func TestTransferTx(t *testing.T) {
 
 			errs <- err
 			results <- result
-		}()
+		}(i)
 	}
 
 	for i := 0; i < n; i++ {
@@ -65,5 +67,22 @@ func TestTransferTx(t *testing.T) {
 		require.NotZero(t, result.ToEntry.CreatedAt)
 
 		// TODO: Check balances
+		require.NotEmpty(t, result.FromAccount)
+		require.NotEmpty(t, result.ToAccount)
+
+		diff1 := account1.Balance - result.FromAccount.Balance
+		diff2 := result.ToAccount.Balance - account2.Balance
+		require.Equal(t, diff1, diff2)
 	}
+
+	fromAccount1, err := store.GetAccount(context.Background(), account1.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, fromAccount1)
+	require.Equal(t, account1.Balance-(int64(n)*amount), fromAccount1.Balance)
+
+	fromAccount2, err := store.GetAccount(context.Background(), account2.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, fromAccount2)
+	require.Equal(t, account2.Balance+(int64(n)*amount), fromAccount2.Balance)
+
 }
